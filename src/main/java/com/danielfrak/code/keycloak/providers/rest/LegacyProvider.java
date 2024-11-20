@@ -3,6 +3,12 @@ package com.danielfrak.code.keycloak.providers.rest;
 import com.danielfrak.code.keycloak.providers.rest.remote.LegacyUser;
 import com.danielfrak.code.keycloak.providers.rest.remote.LegacyUserService;
 import com.danielfrak.code.keycloak.providers.rest.remote.UserModelFactory;
+import com.danielfrak.code.keycloak.providers.rest.rest.UserPasswordDto;
+import com.danielfrak.code.keycloak.providers.rest.rest.http.HttpClient;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.http.HttpStatus;
+import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.http.impl.client.LaxRedirectStrategy;
 import org.jboss.logging.Logger;
 import org.keycloak.component.ComponentModel;
 import org.keycloak.credential.CredentialInput;
@@ -17,6 +23,7 @@ import org.keycloak.policy.PolicyError;
 import org.keycloak.storage.UserStorageProvider;
 import org.keycloak.storage.user.UserLookupProvider;
 
+import java.io.IOException;
 import java.util.Collections;
 import java.util.Optional;
 import java.util.Set;
@@ -131,8 +138,30 @@ public class LegacyProvider implements UserStorageProvider,
 
     @Override
     public boolean updateCredential(RealmModel realm, UserModel user, CredentialInput input) {
-        severFederationLink(user);
-        return false;
+        if (!supportsCredentialType(input.getType())) {
+            return false;
+        }
+
+        var uri = model.getConfig().getFirst(ConfigurationProperties.URI_PROPERTY);
+        var getUsernameUri = String.format("%s/%s", uri, getUserIdentifier(user));
+        var httpClient = new HttpClient(HttpClientBuilder.create().setRedirectStrategy(new LaxRedirectStrategy()));
+
+        var dto = new UserPasswordDto(input.getChallengeResponse());
+        var objectMapper = new ObjectMapper();
+
+        try {
+            var json = objectMapper.writeValueAsString(dto);
+            var response = httpClient.patch(getUsernameUri, json);
+            if (response.getCode() != HttpStatus.SC_OK) {
+                LOG.errorf("Failed to update credential. status code: %d", response.getCode());
+                return false;
+            }
+        } catch (IOException e) {
+            LOG.error("Failed to update credential: ", e);
+            return false;
+        }
+
+        return true;
     }
 
     private void severFederationLink(UserModel user) {

@@ -4,10 +4,7 @@ import org.apache.commons.codec.binary.Base64;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHeaders;
 import org.apache.http.HttpStatus;
-import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.client.methods.HttpUriRequest;
+import org.apache.http.client.methods.*;
 import org.apache.http.entity.ContentType;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -94,6 +91,13 @@ public class HttpClient {
 
     public HttpResponse post(String uri, String bodyAsJson) {
         var request = new HttpPost(uri);
+        var requestEntity = new StringEntity(bodyAsJson, ContentType.APPLICATION_JSON);
+        request.setEntity(requestEntity);
+        return execute(request);
+    }
+
+    public HttpResponse patch(String uri, String bodyAsJson) {
+        var request = new HttpPatch(uri);
         var requestEntity = new StringEntity(bodyAsJson, ContentType.APPLICATION_JSON);
         request.setEntity(requestEntity);
         return execute(request);
