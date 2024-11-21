@@ -31,4 +31,8 @@ public interface LegacyUserService {
      * @return true if password is valid.
      */
     boolean isPasswordValid(String username, String password);
+
+    boolean updateCredential(String username, String password);
+
+    Optional<LegacyUser> addUser(String email, String password, String firstName, String lastName);
 }

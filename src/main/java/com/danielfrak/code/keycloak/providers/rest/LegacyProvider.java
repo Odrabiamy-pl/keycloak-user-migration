@@ -1,5 +1,6 @@
 package com.danielfrak.code.keycloak.providers.rest;
 
+import com.danielfrak.code.keycloak.providers.rest.exceptions.RestUserProviderException;
 import com.danielfrak.code.keycloak.providers.rest.remote.LegacyUser;
 import com.danielfrak.code.keycloak.providers.rest.remote.LegacyUserService;
 import com.danielfrak.code.keycloak.providers.rest.remote.UserModelFactory;
@@ -145,65 +146,42 @@ public class LegacyProvider implements UserStorageProvider,
             return false;
         }
 
-        var uri = model.getConfig().getFirst(ConfigurationProperties.URI_PROPERTY);
-        var getUsernameUri = String.format("%s/%s", uri, getUserIdentifier(user));
-        var httpClient = new HttpClient(HttpClientBuilder.create().setRedirectStrategy(new LaxRedirectStrategy()));
-
-        var dto = new UserPasswordDto(input.getChallengeResponse());
-        var objectMapper = new ObjectMapper();
-
         try {
-            var json = objectMapper.writeValueAsString(dto);
-            var response = httpClient.patch(getUsernameUri, json);
-            if (response.getCode() != HttpStatus.SC_OK) {
-                LOG.errorf("Failed to update credential. status code: %d", response.getCode());
+            var ok = legacyUserService.updateCredential(getUserIdentifier(user), input.getChallengeResponse());
+            if (!ok) {
+                LOG.errorf("Failed to update credential for user: %s", user.getUsername());
                 return false;
             }
-        } catch (IOException e) {
-            LOG.error("Failed to update credential: ", e);
-            return false;
+        } catch (RestUserProviderException e) {
+            LOG.errorf("Failed to update credential for user: %s", user.getUsername(), e);
         }
 
+        // In case of successful update, must still return false.
+        // Otherwise, Keycloak does not store the password in the credential store.
+        // Needs further investigation.
         return false;
     }
 
     @Override
     public UserModel addUser(RealmModel realm, String username) {
-        var uri = model.getConfig().getFirst(ConfigurationProperties.URI_PROPERTY);
-        var addUserUri = String.format("%s/%s", uri, "add_user");
-        var httpClient = new HttpClient(HttpClientBuilder.create().setRedirectStrategy(new LaxRedirectStrategy()));
-
         String password = getFormParameter("password");
         String firstName = getFormParameter("firstName");
         String lastName = getFormParameter("lastName");
 
-        var objectMapper = new ObjectMapper();
-        ObjectNode userJson = objectMapper.createObjectNode();
-        userJson.put("email", username);
-        userJson.put("password", password);
-        userJson.put("firstName", firstName);
-        userJson.put("lastName", lastName);
-
         try {
-            var json = objectMapper.writeValueAsString(userJson);
-            var response = httpClient.post(addUserUri, json);
-            if (response.getCode() != HttpStatus.SC_OK) {
-                LOG.errorf("Failed to add user. status code: %d", response.getCode());
-                return null;
-            }
-            var legacyUser = objectMapper.readValue(response.getBody(), LegacyUser.class);
-            return userModelFactory.create(legacyUser, realm);
-        } catch (IOException e) {
-            LOG.error("Failed to add user: ", e);
+            var user = legacyUserService.addUser(username, password, firstName, lastName);
+            return user.map(legacyUser -> userModelFactory.create(legacyUser, realm)).orElse(null);
+        } catch (RestUserProviderException e) {
+            LOG.errorf("Failed to add user: %s", username, e);
             return null;
         }
     }
 
     private String getFormParameter(String parameterName) {
         return this.session.getContext()
-                .getHttpRequest()
-                .getDecodedFormParameters()
-                .getFirst(parameterName);
+            .getHttpRequest()
+            .getDecodedFormParameters()
+            .getFirst(parameterName);
     }
 
     @Override

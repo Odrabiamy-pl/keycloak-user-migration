@@ -100,4 +100,43 @@ public class RestUserService implements LegacyUserService {
             throw new RestUserProviderException(e);
         }
     }
+
+    @Override
+    public boolean updateCredential(String username, String password) {
+        if (username != null) {
+            username = Encode.urlEncode(username);
+        }
+        var updateCredentialUri = String.format("%s/%s", this.uri, username);
+        var dto = new UserPasswordDto(password);
+        try {
+            var json = objectMapper.writeValueAsString(dto);
+            var response = httpClient.patch(updateCredentialUri, json);
+            return response.getCode() == HttpStatus.SC_OK;
+        } catch (IOException e) {
+            throw new RestUserProviderException(e);
+        }
+    }
+
+    @Override
+    public Optional<LegacyUser> addUser(String email, String password, String firstName, String lastName) {
+        var addUserUri = String.format("%s/%s", uri, "add_user");
+
+        var userJson = objectMapper.createObjectNode();
+        userJson.put("email", email);
+        userJson.put("password", password);
+        userJson.put("firstName", firstName);
+        userJson.put("lastName", lastName);
+
+        try {
+            var json = objectMapper.writeValueAsString(userJson);
+            var response = httpClient.post(addUserUri, json);
+            if (response.getCode() != HttpStatus.SC_OK) {
+                return Optional.empty();
+            }
+            var legacyUser = objectMapper.readValue(response.getBody(), LegacyUser.class);
+            return Optional.of(legacyUser);
+        } catch (IOException e) {
+            throw new RestUserProviderException(e);
+        }
+    }
 }
