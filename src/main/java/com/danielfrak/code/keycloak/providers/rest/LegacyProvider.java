@@ -6,6 +6,7 @@ import com.danielfrak.code.keycloak.providers.rest.remote.UserModelFactory;
 import com.danielfrak.code.keycloak.providers.rest.rest.UserPasswordDto;
 import com.danielfrak.code.keycloak.providers.rest.rest.http.HttpClient;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.apache.http.HttpStatus;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.client.LaxRedirectStrategy;
@@ -22,6 +23,7 @@ import org.keycloak.policy.PasswordPolicyManagerProvider;
 import org.keycloak.policy.PolicyError;
 import org.keycloak.storage.UserStorageProvider;
 import org.keycloak.storage.user.UserLookupProvider;
+import org.keycloak.storage.user.UserRegistrationProvider;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -36,7 +38,8 @@ import java.util.stream.Stream;
 public class LegacyProvider implements UserStorageProvider,
         UserLookupProvider,
         CredentialInputUpdater,
-        CredentialInputValidator {
+        CredentialInputValidator,
+        UserRegistrationProvider {
 
     private static final Logger LOG = Logger.getLogger(LegacyProvider.class);
     private static final Set<String> supportedCredentialTypes = Collections.singleton(PasswordCredentialModel.TYPE);
@@ -161,7 +164,51 @@ public class LegacyProvider implements UserStorageProvider,
             return false;
         }
 
-        return true;
+        return false;
+    }
+
+    @Override
+    public UserModel addUser(RealmModel realm, String username) {
+        var uri = model.getConfig().getFirst(ConfigurationProperties.URI_PROPERTY);
+        var addUserUri = String.format("%s/%s", uri, "add_user");
+        var httpClient = new HttpClient(HttpClientBuilder.create().setRedirectStrategy(new LaxRedirectStrategy()));
+
+        String password = getFormParameter("password");
+        String firstName = getFormParameter("firstName");
+        String lastName = getFormParameter("lastName");
+
+        var objectMapper = new ObjectMapper();
+        ObjectNode userJson = objectMapper.createObjectNode();
+        userJson.put("email", username);
+        userJson.put("password", password);
+        userJson.put("firstName", firstName);
+        userJson.put("lastName", lastName);
+
+        try {
+            var json = objectMapper.writeValueAsString(userJson);
+            var response = httpClient.post(addUserUri, json);
+            if (response.getCode() != HttpStatus.SC_OK) {
+                LOG.errorf("Failed to add user. status code: %d", response.getCode());
+                return null;
+            }
+            var legacyUser = objectMapper.readValue(response.getBody(), LegacyUser.class);
+            return userModelFactory.create(legacyUser, realm);
+        } catch (IOException e) {
+            LOG.error("Failed to add user: ", e);
+            return null;
+        }
+    }
+
+    private String getFormParameter(String parameterName) {
+        return this.session.getContext()
+                .getHttpRequest()
+                .getDecodedFormParameters()
+                .getFirst(parameterName);
+    }
+
+    @Override
+    public boolean removeUser(RealmModel realm, UserModel user) {
+        return false;
     }
 
     private void severFederationLink(UserModel user) {
