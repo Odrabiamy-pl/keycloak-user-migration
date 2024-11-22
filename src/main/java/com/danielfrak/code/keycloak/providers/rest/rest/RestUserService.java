@@ -139,4 +139,18 @@ public class RestUserService implements LegacyUserService {
             throw new RestUserProviderException(e);
         }
     }
+
+    @Override
+    public boolean removeUser(String username) {
+        if (username != null) {
+            username = Encode.urlEncode(username);
+        }
+        var removeUserUri = String.format("%s/%s", this.uri, username);
+        try {
+            var response = httpClient.delete(removeUserUri);
+            return response.getCode() == HttpStatus.SC_OK;
+        } catch (RuntimeException e) {
+            throw new RestUserProviderException(e);
+        }
+    }
 }

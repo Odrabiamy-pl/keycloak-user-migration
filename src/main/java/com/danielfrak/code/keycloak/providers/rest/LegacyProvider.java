@@ -4,13 +4,6 @@ import com.danielfrak.code.keycloak.providers.rest.exceptions.RestUserProviderEx
 import com.danielfrak.code.keycloak.providers.rest.remote.LegacyUser;
 import com.danielfrak.code.keycloak.providers.rest.remote.LegacyUserService;
 import com.danielfrak.code.keycloak.providers.rest.remote.UserModelFactory;
-import com.danielfrak.code.keycloak.providers.rest.rest.UserPasswordDto;
-import com.danielfrak.code.keycloak.providers.rest.rest.http.HttpClient;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import org.apache.http.HttpStatus;
-import org.apache.http.impl.client.HttpClientBuilder;
-import org.apache.http.impl.client.LaxRedirectStrategy;
 import org.jboss.logging.Logger;
 import org.keycloak.component.ComponentModel;
 import org.keycloak.credential.CredentialInput;
@@ -26,7 +19,6 @@ import org.keycloak.storage.UserStorageProvider;
 import org.keycloak.storage.user.UserLookupProvider;
 import org.keycloak.storage.user.UserRegistrationProvider;
 
-import java.io.IOException;
 import java.util.Collections;
 import java.util.Optional;
 import java.util.Set;
@@ -186,7 +178,18 @@ public class LegacyProvider implements UserStorageProvider,
 
     @Override
     public boolean removeUser(RealmModel realm, UserModel user) {
-        return false;
+        try {
+            var ok = legacyUserService.removeUser(getUserIdentifier(user));
+            if (!ok) {
+                LOG.errorf("Failed to remove user: %s", user.getUsername());
+                return false;
+            }
+        } catch (RestUserProviderException e) {
+            LOG.errorf("Failed to remove user: %s", user.getUsername(), e);
+        }
+
+        severFederationLink(user);
+        return true;
     }
 
     private void severFederationLink(UserModel user) {

@@ -102,4 +102,9 @@ public class HttpClient {
         request.setEntity(requestEntity);
         return execute(request);
     }
+
+    public HttpResponse delete(String uri) {
+        var request = new HttpDelete(uri);
+        return execute(request);
+    }
 }
