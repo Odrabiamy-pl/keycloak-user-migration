@@ -96,6 +96,13 @@ public class HttpClient {
         return execute(request);
     }
 
+    public HttpResponse put(String uri, String bodyAsJson) {
+        var request = new HttpPut(uri);
+        var requestEntity = new StringEntity(bodyAsJson, ContentType.APPLICATION_JSON);
+        request.setEntity(requestEntity);
+        return execute(request);
+    }
+
     public HttpResponse patch(String uri, String bodyAsJson) {
         var request = new HttpPatch(uri);
         var requestEntity = new StringEntity(bodyAsJson, ContentType.APPLICATION_JSON);
