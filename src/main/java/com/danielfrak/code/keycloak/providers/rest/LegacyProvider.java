@@ -186,6 +186,7 @@ public class LegacyProvider implements UserStorageProvider,
             }
         } catch (RestUserProviderException e) {
             LOG.errorf("Failed to remove user: %s", user.getUsername(), e);
+            return false;
         }
 
         severFederationLink(user);
