@@ -146,6 +146,10 @@ public class RestUserService implements LegacyUserService {
         var removeUserUri = String.format("%s/%s", this.uri, username);
         try {
             var response = httpClient.delete(removeUserUri);
+            if (response.getCode() == HttpStatus.SC_NOT_FOUND) {
+                return true;
+            }
+            
             return response.getCode() == HttpStatus.SC_OK;
         } catch (RuntimeException e) {
             throw new RestUserProviderException(e);
