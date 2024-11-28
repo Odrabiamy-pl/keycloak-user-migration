@@ -17,6 +17,8 @@ import static com.danielfrak.code.keycloak.providers.rest.ConfigurationPropertie
 
 public class RestUserService implements LegacyUserService {
 
+    private static final String RECORD_NOT_FOUND_RESP = "record_not_found";
+
     private final String uri;
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
@@ -146,10 +148,10 @@ public class RestUserService implements LegacyUserService {
         var removeUserUri = String.format("%s/%s", this.uri, username);
         try {
             var response = httpClient.delete(removeUserUri);
-            if (response.getCode() == HttpStatus.SC_NOT_FOUND) {
+            if (response.getCode() == HttpStatus.SC_NOT_FOUND && response.getBody().contains(RECORD_NOT_FOUND_RESP)) {
                 return true;
             }
-            
+
             return response.getCode() == HttpStatus.SC_OK;
         } catch (RuntimeException e) {
             throw new RestUserProviderException(e);

@@ -9,10 +9,8 @@ import okio.Buffer;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.http.HttpHeaders;
 import org.apache.http.HttpStatus;
-import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
-import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.client.LaxRedirectStrategy;
@@ -31,7 +29,6 @@ import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.BDDMockito.willAnswer;
 import static org.mockito.Mockito.*;
 
 class HttpClientTest {
@@ -81,11 +78,10 @@ class HttpClientTest {
     void getShouldReturnResponseWhenHttpCodeNot200() throws InterruptedException {
         enqueueFailedResponse();
 
-        HttpResponse response = httpClient.get(uri);
+        httpClient.get(uri);
 
         RecordedRequest recordedRequest = Objects.requireNonNull(
                 mockWebServer.takeRequest(5, TimeUnit.SECONDS));
-        assertNull(response.body);
         assertEquals(HttpGet.METHOD_NAME, recordedRequest.getMethod());
         assertEquals("/", recordedRequest.getPath());
         assertEquals(uri, Objects.requireNonNull(recordedRequest.getRequestUrl()).toString());
@@ -337,11 +333,10 @@ class HttpClientTest {
     void postShouldReturnResponseWhenHttpCodeNot200() throws InterruptedException {
         enqueueFailedResponse();
 
-        HttpResponse response = httpClient.post(uri, "{}");
+        httpClient.post(uri, "{}");
 
         RecordedRequest recordedRequest = Objects.requireNonNull(
                 mockWebServer.takeRequest(5, TimeUnit.SECONDS));
-        assertNull(response.body);
         assertEquals(HttpPost.METHOD_NAME, recordedRequest.getMethod());
         assertEquals("/", recordedRequest.getPath());
         assertEquals(uri, Objects.requireNonNull(recordedRequest.getRequestUrl()).toString());

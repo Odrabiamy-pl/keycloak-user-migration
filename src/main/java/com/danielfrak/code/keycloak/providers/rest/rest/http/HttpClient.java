@@ -3,7 +3,6 @@ package com.danielfrak.code.keycloak.providers.rest.rest.http;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHeaders;
-import org.apache.http.HttpStatus;
 import org.apache.http.client.methods.*;
 import org.apache.http.entity.ContentType;
 import org.apache.http.entity.StringEntity;
@@ -69,11 +68,8 @@ public class HttpClient {
 
     private HttpResponse getHttpResponse(CloseableHttpResponse response) throws IOException {
         int statusCode = response.getStatusLine().getStatusCode();
-        if (statusCode != HttpStatus.SC_OK) {
-            return new HttpResponse(statusCode);
-        }
-
         String entityAsString = getEntityAsString(response);
+
         return new HttpResponse(statusCode, entityAsString);
     }
 
