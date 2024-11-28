@@ -1,5 +1,6 @@
 package com.danielfrak.code.keycloak.providers.rest;
 
+import com.danielfrak.code.keycloak.providers.rest.exceptions.RestUserProviderException;
 import com.danielfrak.code.keycloak.providers.rest.remote.LegacyUser;
 import com.danielfrak.code.keycloak.providers.rest.remote.LegacyUserService;
 import com.danielfrak.code.keycloak.providers.rest.remote.UserModelFactory;
@@ -16,6 +17,7 @@ import org.keycloak.policy.PasswordPolicyManagerProvider;
 import org.keycloak.policy.PolicyError;
 import org.keycloak.storage.UserStorageProvider;
 import org.keycloak.storage.user.UserLookupProvider;
+import org.keycloak.storage.user.UserRegistrationProvider;
 
 import java.util.Collections;
 import java.util.Optional;
@@ -29,7 +31,8 @@ import java.util.stream.Stream;
 public class LegacyProvider implements UserStorageProvider,
         UserLookupProvider,
         CredentialInputUpdater,
-        CredentialInputValidator {
+        CredentialInputValidator,
+        UserRegistrationProvider {
 
     private static final Logger LOG = Logger.getLogger(LegacyProvider.class);
     private static final Set<String> supportedCredentialTypes = Collections.singleton(PasswordCredentialModel.TYPE);
@@ -131,8 +134,63 @@ public class LegacyProvider implements UserStorageProvider,
 
     @Override
     public boolean updateCredential(RealmModel realm, UserModel user, CredentialInput input) {
-        severFederationLink(user);
+        if (!supportsCredentialType(input.getType())) {
+            return false;
+        }
+
+        try {
+            var ok = legacyUserService.updateCredential(getUserIdentifier(user), input.getChallengeResponse());
+            if (!ok) {
+                LOG.errorf("Failed to update credential for user: %s", user.getUsername());
+                return false;
+            }
+        } catch (RestUserProviderException e) {
+            LOG.errorf("Failed to update credential for user: %s", user.getUsername(), e);
+        }
+
+        // In case of successful update, must still return false.
+        // Otherwise, Keycloak does not store the password in the credential store.
+        // Needs further investigation.
         return false;
+    }
+
+    @Override
+    public UserModel addUser(RealmModel realm, String username) {
+        String password = getFormParameter("password");
+        String firstName = getFormParameter("firstName");
+        String lastName = getFormParameter("lastName");
+
+        try {
+            var user = legacyUserService.addUser(username, password, firstName, lastName);
+            return user.map(legacyUser -> userModelFactory.create(legacyUser, realm)).orElse(null);
+        } catch (RestUserProviderException e) {
+            LOG.errorf("Failed to add user: %s", username, e);
+            return null;
+        }
+    }
+
+    private String getFormParameter(String parameterName) {
+        return this.session.getContext()
+            .getHttpRequest()
+            .getDecodedFormParameters()
+            .getFirst(parameterName);
+    }
+
+    @Override
+    public boolean removeUser(RealmModel realm, UserModel user) {
+        try {
+            var ok = legacyUserService.removeUser(getUserIdentifier(user));
+            if (!ok) {
+                LOG.errorf("Failed to remove user: %s", user.getUsername());
+                return false;
+            }
+        } catch (RestUserProviderException e) {
+            LOG.errorf("Failed to remove user: %s", user.getUsername(), e);
+            return false;
+        }
+
+        severFederationLink(user);
+        return true;
     }
 
     private void severFederationLink(UserModel user) {

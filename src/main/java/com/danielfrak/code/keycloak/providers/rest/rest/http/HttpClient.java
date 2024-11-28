@@ -3,11 +3,7 @@ package com.danielfrak.code.keycloak.providers.rest.rest.http;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHeaders;
-import org.apache.http.HttpStatus;
-import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.client.methods.HttpUriRequest;
+import org.apache.http.client.methods.*;
 import org.apache.http.entity.ContentType;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -72,11 +68,8 @@ public class HttpClient {
 
     private HttpResponse getHttpResponse(CloseableHttpResponse response) throws IOException {
         int statusCode = response.getStatusLine().getStatusCode();
-        if (statusCode != HttpStatus.SC_OK) {
-            return new HttpResponse(statusCode);
-        }
-
         String entityAsString = getEntityAsString(response);
+
         return new HttpResponse(statusCode, entityAsString);
     }
 
@@ -96,6 +89,25 @@ public class HttpClient {
         var request = new HttpPost(uri);
         var requestEntity = new StringEntity(bodyAsJson, ContentType.APPLICATION_JSON);
         request.setEntity(requestEntity);
+        return execute(request);
+    }
+
+    public HttpResponse put(String uri, String bodyAsJson) {
+        var request = new HttpPut(uri);
+        var requestEntity = new StringEntity(bodyAsJson, ContentType.APPLICATION_JSON);
+        request.setEntity(requestEntity);
+        return execute(request);
+    }
+
+    public HttpResponse patch(String uri, String bodyAsJson) {
+        var request = new HttpPatch(uri);
+        var requestEntity = new StringEntity(bodyAsJson, ContentType.APPLICATION_JSON);
+        request.setEntity(requestEntity);
+        return execute(request);
+    }
+
+    public HttpResponse delete(String uri) {
+        var request = new HttpDelete(uri);
         return execute(request);
     }
 }
