@@ -4,7 +4,9 @@ import com.danielfrak.code.keycloak.providers.rest.exceptions.RestUserProviderEx
 import com.danielfrak.code.keycloak.providers.rest.remote.LegacyUser;
 import com.danielfrak.code.keycloak.providers.rest.remote.LegacyUserService;
 import com.danielfrak.code.keycloak.providers.rest.remote.UserModelFactory;
+
 import org.jboss.logging.Logger;
+import org.keycloak.authentication.authenticators.broker.util.SerializedBrokeredIdentityContext;
 import org.keycloak.component.ComponentModel;
 import org.keycloak.credential.CredentialInput;
 import org.keycloak.credential.CredentialInputUpdater;
@@ -15,13 +17,12 @@ import org.keycloak.models.UserModel;
 import org.keycloak.models.credential.PasswordCredentialModel;
 import org.keycloak.policy.PasswordPolicyManagerProvider;
 import org.keycloak.policy.PolicyError;
+import org.keycloak.sessions.AuthenticationSessionModel;
 import org.keycloak.storage.UserStorageProvider;
 import org.keycloak.storage.user.UserLookupProvider;
 import org.keycloak.storage.user.UserRegistrationProvider;
 
-import java.util.Collections;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
@@ -48,7 +49,6 @@ public class LegacyProvider implements UserStorageProvider,
         this.userModelFactory = userModelFactory;
         this.model = model;
     }
-
 
     private UserModel getUserModel(RealmModel realm, String username, Supplier<Optional<LegacyUser>> user) {
         return user.get()
@@ -156,12 +156,31 @@ public class LegacyProvider implements UserStorageProvider,
 
     @Override
     public UserModel addUser(RealmModel realm, String username) {
-        String password = getFormParameter("password");
-        String firstName = getFormParameter("firstName");
-        String lastName = getFormParameter("lastName");
+        String password = null, firstName = null, lastName = null, picture = null, broker_id = null;
+
+        // if the user was created by a broker (e.g. Facebook), retrieve the broker context
+        AuthenticationSessionModel authSession = this.session.getContext().getAuthenticationSession();
+        if (authSession.getAuthNote("broker_context") != null) {
+            try {
+                SerializedBrokeredIdentityContext brokerContext =
+                        SerializedBrokeredIdentityContext.readFromAuthenticationSession(authSession, "broker_context");
+
+                firstName = brokerContext.getFirstName();
+                lastName = brokerContext.getLastName();
+                picture = brokerContext.getAttribute("picture").getFirst();
+                broker_id = brokerContext.getAttribute("broker_id").getFirst();
+            } catch (Exception e) {
+                LOG.error("Error deserializing broker context", e);
+            }
+        // otherwise, get the user details from the registration form
+        } else {
+            firstName = getFormParameter("firstName");
+            lastName = getFormParameter("lastName");
+            password = getFormParameter("password");
+        }
 
         try {
-            var user = legacyUserService.addUser(username, password, firstName, lastName);
+            var user = legacyUserService.addUser(username, password, firstName, lastName, picture, broker_id);
             return user.map(legacyUser -> userModelFactory.create(legacyUser, realm)).orElse(null);
         } catch (RestUserProviderException e) {
             LOG.errorf("Failed to add user: %s", username, e);
