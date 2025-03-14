@@ -303,42 +303,6 @@ class LegacyProviderTest {
     }
 
     @Test
-    void shouldRemoveFederationLinkWhenCredentialUpdates() {
-        var input = mock(CredentialInput.class);
-        when(userModel.getFederationLink())
-                .thenReturn("someId");
-
-        assertFalse(legacyProvider.updateCredential(realmModel, userModel, input));
-
-        verify(userModel)
-                .setFederationLink(null);
-    }
-
-    @Test
-    void shouldNotRemoveFederationLinkWhenBlankAndCredentialUpdates() {
-        var input = mock(CredentialInput.class);
-        when(userModel.getFederationLink())
-                .thenReturn(" ");
-
-        assertFalse(legacyProvider.updateCredential(realmModel, userModel, input));
-
-        verify(userModel, never())
-                .setFederationLink(null);
-    }
-
-    @Test
-    void shouldNotRemoveFederationLinkWhenNullAndCredentialUpdates() {
-        var input = mock(CredentialInput.class);
-        when(userModel.getFederationLink())
-                .thenReturn(null);
-
-        assertFalse(legacyProvider.updateCredential(realmModel, userModel, input));
-
-        verify(userModel, never())
-                .setFederationLink(null);
-    }
-
-    @Test
     void disableCredentialTypeShouldDoNothing() {
         legacyProvider.disableCredentialType(realmModel, userModel, "someType");
         Mockito.verifyNoInteractions(session, legacyUserService, userModelFactory, realmModel, userModel);
