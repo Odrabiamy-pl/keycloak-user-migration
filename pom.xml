@@ -6,11 +6,11 @@
 
     <groupId>com.danielfrak.code.keycloak.providers</groupId>
     <artifactId>keycloak-rest-provider</artifactId>
-    <version>6.0.1-SNAPSHOT</version>
+    <version>6.0.3-SNAPSHOT</version>
     <properties>
         <java.version>21</java.version>
         <keycloak.version>26.0.5</keycloak.version>
-        <mockito.version>5.14.2</mockito.version>
+        <mockito.version>5.16.0</mockito.version>
 
         <maven.compiler.target>${java.version}</maven.compiler.target>
         <maven.compiler.source>${java.version}</maven.compiler.source>
@@ -91,7 +91,23 @@
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
-            <version>5.11.3</version>
+            <version>5.11.4</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- https://mvnrepository.com/artifact/org.assertj/assertj-core -->
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <version>3.27.3</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- https://mvnrepository.com/artifact/net.javacrumbs.json-unit/json-unit-assertj -->
+        <dependency>
+            <groupId>net.javacrumbs.json-unit</groupId>
+            <artifactId>json-unit-assertj</artifactId>
+            <version>4.1.0</version>
             <scope>test</scope>
         </dependency>
 
@@ -99,7 +115,7 @@
         <dependency>
             <groupId>org.junit.platform</groupId>
             <artifactId>junit-platform-engine</artifactId>
-            <version>1.11.3</version>
+            <version>1.11.4</version>
             <scope>test</scope>
         </dependency>
 
@@ -137,7 +153,7 @@
         <dependency>
             <groupId>nl.jqno.equalsverifier</groupId>
             <artifactId>equalsverifier</artifactId>
-            <version>3.17.3</version>
+            <version>3.19.1</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
