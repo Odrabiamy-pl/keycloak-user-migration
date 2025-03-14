@@ -26,9 +26,14 @@ import java.util.*;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
+
 /**
  * Provides legacy user migration functionality
  */
+@SuppressWarnings(
+        // No easy way to reduce the dependencies of this class:
+        "java:S1200"
+)
 public class LegacyProvider implements UserStorageProvider,
         UserLookupProvider,
         CredentialInputUpdater,
@@ -36,7 +41,7 @@ public class LegacyProvider implements UserStorageProvider,
         UserRegistrationProvider {
 
     private static final Logger LOG = Logger.getLogger(LegacyProvider.class);
-    private static final Set<String> supportedCredentialTypes = Collections.singleton(PasswordCredentialModel.TYPE);
+    private static final Set<String> supportedCredentialTypes = Set.of(PasswordCredentialModel.TYPE);
     private final KeycloakSession session;
     private final LegacyUserService legacyUserService;
     private final UserModelFactory userModelFactory;
@@ -48,23 +53,6 @@ public class LegacyProvider implements UserStorageProvider,
         this.legacyUserService = legacyUserService;
         this.userModelFactory = userModelFactory;
         this.model = model;
-    }
-
-    private UserModel getUserModel(RealmModel realm, String username, Supplier<Optional<LegacyUser>> user) {
-        return user.get()
-                .filter(u -> {
-                    // Make sure we're not trying to migrate users if they have changed their username
-                    boolean duplicate = userModelFactory.isDuplicateUserId(u, realm);
-                    if (duplicate) {
-                        LOG.warnf("User with the same user id already exists: %s", u.getId());
-                    }
-                    return !duplicate;
-                })
-                .map(u -> userModelFactory.create(u, realm))
-                .orElseGet(() -> {
-                    LOG.warnf("User not found in external repository: %s", username);
-                    return null;
-                });
     }
 
     @Override
@@ -106,7 +94,7 @@ public class LegacyProvider implements UserStorageProvider,
     private void addUpdatePasswordAction(UserModel userModel, String userIdentifier) {
         if (updatePasswordActionMissing(userModel)) {
             LOG.infof("Could not use legacy password for user %s due to password policy." +
-                            " Adding UPDATE_PASSWORD action.",
+                      " Adding UPDATE_PASSWORD action.",
                     userIdentifier);
             userModel.addRequiredAction(UserModel.RequiredAction.UPDATE_PASSWORD);
         }
@@ -238,6 +226,23 @@ public class LegacyProvider implements UserStorageProvider,
     @Override
     public UserModel getUserByUsername(RealmModel realmModel, String username) {
         return getUserModel(realmModel, username, () -> legacyUserService.findByUsername(username));
+    }
+
+    private UserModel getUserModel(RealmModel realm, String username, Supplier<Optional<LegacyUser>> user) {
+        return user.get()
+                .filter(u -> {
+                    // Make sure we're not trying to migrate users if they have changed their username
+                    boolean duplicate = userModelFactory.isDuplicateUserId(u, realm);
+                    if (duplicate) {
+                        LOG.warnf("User with the same user id already exists: %s", u.id());
+                    }
+                    return !duplicate;
+                })
+                .map(u -> userModelFactory.create(u, realm))
+                .orElseGet(() -> {
+                    LOG.warnf("User not found in external repository: %s", username);
+                    return null;
+                });
     }
 
     @Override
