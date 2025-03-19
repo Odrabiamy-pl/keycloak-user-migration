@@ -120,7 +120,7 @@ public class RestUserService implements LegacyUserService {
     }
 
     @Override
-    public Optional<LegacyUser> addUser(String email, String password, String firstName, String lastName, String picture, String broker_id) {
+    public Optional<LegacyUser> addUser(String email, String password, String firstName, String lastName, String picture, String provider_id) {
         var userJson = objectMapper.createObjectNode();
         userJson.put("email", email);
         userJson.put("firstName", firstName);
@@ -132,8 +132,8 @@ public class RestUserService implements LegacyUserService {
         if (picture != null) {
             userJson.put("picture", picture);
         }
-        if (broker_id != null) {
-            userJson.put("brokerId", broker_id);
+        if (provider_id != null) {
+            userJson.put("providerId", provider_id);
         }
 
         try {
