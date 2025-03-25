@@ -5,7 +5,6 @@ import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import okhttp3.mockwebserver.RecordedRequest;
 import okhttp3.mockwebserver.SocketPolicy;
-import okio.Buffer;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.http.HttpHeaders;
 import org.apache.http.HttpStatus;
@@ -29,7 +28,8 @@ import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class HttpClientTest {
 
@@ -42,7 +42,7 @@ class HttpClientTest {
         mockWebServer = new MockWebServer();
         mockWebServer.start();
         httpClient = new HttpClient(HttpClientBuilder.create().setRedirectStrategy(new LaxRedirectStrategy()));
-        uri = String.format("http://" + mockWebServer.getHostName() + ":%s/", mockWebServer.getPort());
+        uri = String.format("http://%s:%s/", mockWebServer.getHostName(), mockWebServer.getPort());
     }
 
     @AfterEach
@@ -53,7 +53,7 @@ class HttpClientTest {
     @Test
     void getShouldThrowIfResponseThrows() {
         var mockResponse = new MockResponse()
-                .setBody(new Buffer().write(new byte[4096]))
+                .setBody("testBody")
                 .setSocketPolicy(SocketPolicy.DISCONNECT_DURING_RESPONSE_BODY);
         mockWebServer.enqueue(mockResponse);
 
@@ -251,7 +251,7 @@ class HttpClientTest {
     @Test
     void postShouldThrowIfResponseThrows() {
         var mockResponse = new MockResponse()
-                .setBody(new Buffer().write(new byte[4096]))
+                .setBody("testBody")
                 .setSocketPolicy(SocketPolicy.DISCONNECT_DURING_RESPONSE_BODY);
         mockWebServer.enqueue(mockResponse);
 
