@@ -34,7 +34,7 @@ public interface LegacyUserService {
 
     boolean updateCredential(String username, String password);
 
-    Optional<LegacyUser> addUser(String email, String password, String firstName, String lastName, String picture, String provider_id);
+    Optional<LegacyUser> addUser(String email, String password, String firstName, String lastName, String picture, String provider, String providerUserId);
 
     boolean removeUser(String username);
 }
