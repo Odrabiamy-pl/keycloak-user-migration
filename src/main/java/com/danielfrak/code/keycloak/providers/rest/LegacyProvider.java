@@ -167,9 +167,11 @@ public class LegacyProvider implements UserStorageProvider,
 
                 firstName = brokerContext.getFirstName();
                 lastName = brokerContext.getLastName();
-                picture = brokerContext.getAttribute("picture").getFirst();
                 provider = brokerContext.getIdentityProviderId();
                 providerUserId = brokerContext.getId();
+
+                var pictureAttr = brokerContext.getAttribute("picture");
+                picture = pictureAttr != null ? pictureAttr.getFirst() : null;
             } catch (Exception e) {
                 LOG.error("Error deserializing broker context", e);
             }
