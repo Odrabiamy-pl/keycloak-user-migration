@@ -156,7 +156,7 @@ public class LegacyProvider implements UserStorageProvider,
 
     @Override
     public UserModel addUser(RealmModel realm, String username) {
-        String password = null, firstName = null, lastName = null, picture = null, provider_id = null;
+        String password = null, firstName = null, lastName = null, picture = null, provider = null, providerUserId = null;
 
         // if the user was created by a broker (e.g. Facebook), retrieve the broker context
         AuthenticationSessionModel authSession = this.session.getContext().getAuthenticationSession();
@@ -168,7 +168,8 @@ public class LegacyProvider implements UserStorageProvider,
                 firstName = brokerContext.getFirstName();
                 lastName = brokerContext.getLastName();
                 picture = brokerContext.getAttribute("picture").getFirst();
-                provider_id = brokerContext.getAttribute("provider_id").getFirst();
+                provider = brokerContext.getIdentityProviderId();
+                providerUserId = brokerContext.getId();
             } catch (Exception e) {
                 LOG.error("Error deserializing broker context", e);
             }
@@ -180,7 +181,7 @@ public class LegacyProvider implements UserStorageProvider,
         }
 
         try {
-            var user = legacyUserService.addUser(username, password, firstName, lastName, picture, provider_id);
+            var user = legacyUserService.addUser(username, password, firstName, lastName, picture, provider, providerUserId);
             return user.map(legacyUser -> userModelFactory.create(legacyUser, realm)).orElse(null);
         } catch (RestUserProviderException e) {
             LOG.errorf("Failed to add user: %s", username, e);
