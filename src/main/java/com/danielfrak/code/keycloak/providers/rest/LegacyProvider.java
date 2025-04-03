@@ -160,7 +160,7 @@ public class LegacyProvider implements UserStorageProvider,
 
         // if the user was created by a broker (e.g. Facebook), retrieve the broker context
         AuthenticationSessionModel authSession = this.session.getContext().getAuthenticationSession();
-        if (authSession.getAuthNote("broker_context") != null) {
+        if (authSession != null && authSession.getAuthNote("broker_context") != null) {
             try {
                 SerializedBrokeredIdentityContext brokerContext =
                         SerializedBrokeredIdentityContext.readFromAuthenticationSession(authSession, "broker_context");
