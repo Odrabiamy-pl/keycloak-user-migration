@@ -1,6 +1,6 @@
 package com.danielfrak.code.keycloak.providers.rest.rest;
 
-import com.danielfrak.code.keycloak.providers.rest.exceptions.RestUserProviderException;
+import com.danielfrak.code.keycloak.providers.rest.remote.LegacyTotp;
 import com.danielfrak.code.keycloak.providers.rest.remote.LegacyUser;
 import com.danielfrak.code.keycloak.providers.rest.rest.http.HttpClient;
 import com.danielfrak.code.keycloak.providers.rest.rest.http.HttpResponse;
@@ -23,17 +23,20 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static com.danielfrak.code.keycloak.providers.rest.ConfigurationProperties.*;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class RestUserServiceTest {
 
-    private final static String URI_PATH_FORMAT = "%s/%s";
-    private final static String URI = "http://localhost:9090";
+    private static final String URI_PATH_FORMAT = "%s/%s";
+    private static final String URI = "http://localhost:9090";
 
     private ObjectMapper objectMapper;
     private MultivaluedHashMap<String, String> config;
@@ -89,45 +92,61 @@ class RestUserServiceTest {
     }
 
     @Test
-    void findByEmailShouldThrowWhenRuntimeExceptionOccurs() {
+    void findByEmailShouldReturnEmptyWhenRuntimeExceptionOccurs() {
         var restUserService = new RestUserService(model, httpClient, new ObjectMapper());
         var cause = new RuntimeException();
 
         when(httpClient.get(any()))
                 .thenThrow(cause);
 
-        var exception = assertThrows(RestUserProviderException.class,
-                () -> restUserService.findByEmail("someEmail"));
+        var result = restUserService.findByEmail("someEmail");
 
-        assertEquals(cause, exception.getCause());
+        assertThat(result).isEmpty();
     }
 
     @Test
-    void findByEmailShouldThrowWhenIOExceptionOccurs() {
+    void findByEmailShouldReturnEmptyWhenIOExceptionOccurs() {
         var restUserService = new RestUserService(model, httpClient, new ObjectMapper());
 
         when(httpClient.get(any()))
                 .thenReturn(new HttpResponse(200, "malformedJson"));
 
-        var exception = assertThrows(RestUserProviderException.class,
-                () -> restUserService.findByEmail("someEmail"));
+        var result = restUserService.findByEmail("someEmail");
 
-        assertSame(exception.getCause().getClass(), JsonParseException.class);
+        assertThat(result).isEmpty();
     }
 
     @Test
     void findByEmailShouldReturnAUserWhenUserIsFoundAndEmailMatches() throws IOException {
         var expectedUser = createALegacyUser("someUsername", "email@example.com");
         var response = new HttpResponse(HttpStatus.SC_OK, objectMapper.writeValueAsString(expectedUser));
-        var path = String.format(URI_PATH_FORMAT, URI, Encode.urlEncode(expectedUser.getEmail()));
+        var path = String.format(URI_PATH_FORMAT, URI, Encode.urlEncode(expectedUser.email()));
         var restUserService = new RestUserService(model, httpClient, new ObjectMapper());
 
         when(httpClient.get(path)).thenReturn(response);
 
-        var result = restUserService.findByEmail(expectedUser.getEmail());
+        var result = restUserService.findByEmail(expectedUser.email());
 
-        assertTrue(result.isPresent());
-        assertEquals(result.get(), expectedUser);
+        assertThat(result).get().isEqualTo(expectedUser);
+    }
+
+    @NotNull
+    private LegacyUser createALegacyUser(String username, String email) {
+        return new LegacyUser(
+                "someId",
+                username,
+                email,
+                "Bob",
+                "Smith",
+                true,
+                true,
+                Map.of("position", List.of("rockstar-developer")),
+                List.of("admin"),
+                List.of("migrated_users"),
+                List.of("CONFIGURE_TOTP"),
+                List.of(new LegacyTotp("someSecret", "someName", 1, 2,
+                        "someAlgorithm", "someEncoding"))
+        );
     }
 
     @Test
@@ -141,37 +160,20 @@ class RestUserServiceTest {
 
         var result = restUserService.findByEmail("EMAIL@EXAMPLE.COM");
 
-        assertTrue(result.isPresent());
-        assertEquals(result.get(), expectedUser);
-    }
-
-    @NotNull
-    private LegacyUser createALegacyUser(String username, String email) {
-        var legacyUser = new LegacyUser();
-        legacyUser.setUsername(username);
-        legacyUser.setEmail(email);
-        legacyUser.setRoles(List.of("admin"));
-        legacyUser.setGroups(List.of("migrated_users"));
-        legacyUser.setRequiredActions(List.of("CONFIGURE_TOTP"));
-        legacyUser.setFirstName("Bob");
-        legacyUser.setLastName("Smith");
-        legacyUser.setEnabled(true);
-        legacyUser.setEmailVerified(true);
-        legacyUser.setAttributes(Map.of("position", List.of("rockstar-developer")));
-        return legacyUser;
+        assertThat(result).get().isEqualTo(expectedUser);
     }
 
     @Test
     void findByEmailShouldReturnAnEmptyOptionalWhenUserIsNotFound() {
         var expectedUser = createALegacyUser("someUsername", "email@example.com");
-        var path = String.format(URI_PATH_FORMAT, URI, Encode.urlEncode(expectedUser.getEmail()));
+        var path = String.format(URI_PATH_FORMAT, URI, Encode.urlEncode(expectedUser.email()));
         var response = new HttpResponse(HttpStatus.SC_NOT_FOUND);
         var restUserService = new RestUserService(model, httpClient, new ObjectMapper());
         when(httpClient.get(path)).thenReturn(response);
 
-        var result = restUserService.findByUsername(expectedUser.getEmail());
+        var result = restUserService.findByUsername(expectedUser.email());
 
-        assertTrue(result.isEmpty());
+        assertThat(result).isEmpty();
     }
 
     @ParameterizedTest
@@ -191,48 +193,45 @@ class RestUserServiceTest {
 
         var result = restUserService.findByEmail(requestedEmail);
 
-        assertTrue(result.isEmpty());
+        assertThat(result).isEmpty();
     }
 
     @Test
-    void findByUsernameShouldThrowWhenRuntimeExceptionOccurs() {
+    void findByUsernameShouldReturnEmptyWhenRuntimeExceptionOccurs() {
         var restUserService = new RestUserService(model, httpClient, new ObjectMapper());
         var cause = new RuntimeException();
 
         when(httpClient.get(any()))
                 .thenThrow(cause);
 
-        var exception = assertThrows(RestUserProviderException.class,
-                () -> restUserService.findByUsername("someUsername"));
+        var result = restUserService.findByUsername("someUsername");
 
-        assertEquals(cause, exception.getCause());
+        assertThat(result).isEmpty();
     }
 
     @Test
-    void findByUsernameShouldThrowWhenIOExceptionOccurs() {
+    void findByUsernameShouldReturnEmptyWhenIOExceptionOccurs() {
         var restUserService = new RestUserService(model, httpClient, new ObjectMapper());
 
         when(httpClient.get(any()))
                 .thenReturn(new HttpResponse(200, "malformedJson"));
 
-        var exception = assertThrows(RestUserProviderException.class,
-                () -> restUserService.findByUsername("someUsername"));
+        var result = restUserService.findByUsername("someUsername");
 
-        assertSame(exception.getCause().getClass(), JsonParseException.class);
+        assertThat(result).isEmpty();
     }
 
     @Test
     void findByUsernameShouldReturnAUserWhenUserIsFoundAndUsernameMatches() throws IOException {
         var expectedUser = createALegacyUser("someUsername", "email@example.com");
-        var path = String.format(URI_PATH_FORMAT, URI, expectedUser.getUsername());
+        var path = String.format(URI_PATH_FORMAT, URI, expectedUser.username());
         var response = new HttpResponse(HttpStatus.SC_OK, objectMapper.writeValueAsString(expectedUser));
         var restUserService = new RestUserService(model, httpClient, new ObjectMapper());
         when(httpClient.get(path)).thenReturn(response);
 
-        var result = restUserService.findByUsername(expectedUser.getUsername());
+        Optional<LegacyUser> result = restUserService.findByUsername(expectedUser.username());
 
-        assertTrue(result.isPresent());
-        assertEquals(result.get(), expectedUser);
+        assertThat(result).get().isEqualTo(expectedUser);
     }
 
     @Test
@@ -245,8 +244,7 @@ class RestUserServiceTest {
 
         var result = restUserService.findByUsername("SOMEUSERNAME");
 
-        assertTrue(result.isPresent());
-        assertEquals(result.get(), expectedUser);
+        assertThat(result).get().isEqualTo(expectedUser);
     }
 
     @Test
@@ -259,21 +257,20 @@ class RestUserServiceTest {
 
         var result = restUserService.findByUsername("SOME USERNAME");
 
-        assertTrue(result.isPresent());
-        assertEquals(result.get(), expectedUser);
+        assertThat(result).get().isEqualTo(expectedUser);
     }
 
     @Test
     void findByUsernameShouldReturnAnEmptyOptionalWhenUserIsNotFound() {
         var expectedUser = createALegacyUser("someUsername", "email@example.com");
-        var path = String.format(URI_PATH_FORMAT, URI, expectedUser.getUsername());
+        var path = String.format(URI_PATH_FORMAT, URI, expectedUser.username());
         var response = new HttpResponse(HttpStatus.SC_NOT_FOUND);
         when(httpClient.get(path)).thenReturn(response);
         var restUserService = new RestUserService(model, httpClient, new ObjectMapper());
 
-        var result = restUserService.findByUsername(expectedUser.getUsername());
+        var result = restUserService.findByUsername(expectedUser.username());
 
-        assertTrue(result.isEmpty());
+        assertThat(result).isEmpty();
     }
 
     @Test
@@ -287,7 +284,7 @@ class RestUserServiceTest {
 
         var result = restUserService.findByUsername("someUsername");
 
-        assertTrue(result.isEmpty());
+        assertThat(result).isEmpty();
     }
 
     @ParameterizedTest
@@ -307,7 +304,7 @@ class RestUserServiceTest {
 
         var result = restUserService.findByUsername(requestedUsername);
 
-        assertTrue(result.isEmpty());
+        assertThat(result).isEmpty();
     }
 
     @Test
@@ -322,7 +319,7 @@ class RestUserServiceTest {
 
         var isPasswordValid = restUserService.isPasswordValid(username, password);
 
-        assertTrue(isPasswordValid);
+        assertThat(isPasswordValid).isTrue();
     }
 
     @Test
@@ -337,7 +334,7 @@ class RestUserServiceTest {
 
         var isPasswordValid = restUserService.isPasswordValid(username, password);
 
-        assertTrue(isPasswordValid);
+        assertThat(isPasswordValid).isTrue();
     }
 
     @Test
@@ -352,7 +349,7 @@ class RestUserServiceTest {
 
         var isPasswordValid = restUserService.isPasswordValid(username, password);
 
-        assertTrue(isPasswordValid);
+        assertThat(isPasswordValid).isTrue();
     }
 
     @Test
@@ -366,21 +363,20 @@ class RestUserServiceTest {
 
         var isPasswordValid = restUserService.isPasswordValid(username, password);
 
-        assertFalse(isPasswordValid);
+        assertThat(isPasswordValid).isFalse();
     }
 
     @Test
-    void isPasswordValidShouldThrowWhenIOExceptionOccurs() throws JsonProcessingException {
-        var objectMapper = mock(ObjectMapper.class);
+    void isPasswordValidShouldReturnFalseWhenIOExceptionOccurs() throws JsonProcessingException {
+        var mockObjectMapper = mock(ObjectMapper.class);
         var cause = mock(JsonProcessingException.class);
-        var restUserService = new RestUserService(model, httpClient, objectMapper);
+        var restUserService = new RestUserService(model, httpClient, mockObjectMapper);
 
-        when(objectMapper.writeValueAsString(any()))
+        when(mockObjectMapper.writeValueAsString(any()))
                 .thenThrow(cause);
 
-        var exception = assertThrows(RestUserProviderException.class,
-                () -> restUserService.isPasswordValid("someUsername", "somePassword"));
-
-        assertSame(exception.getCause(), cause);
+        var isPasswordValid = restUserService.isPasswordValid(
+                "someUsername", "somePassword");
+        assertThat(isPasswordValid).isFalse();
     }
 }
