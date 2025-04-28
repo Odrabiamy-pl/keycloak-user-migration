@@ -245,6 +245,10 @@ public class LegacyProvider implements UserStorageProvider,
 
     @Override
     public UserModel getUserByEmail(RealmModel realmModel, String email) {
-        return getUserModel(realmModel, email, () -> legacyUserService.findByEmail(email));
+        UserModel userModel = getUserModel(realmModel, email, () -> legacyUserService.findByEmail(email));
+        if (userModel != null) {
+            userModel.setEmailVerified(true);
+        }
+        return userModel;
     }
 }
