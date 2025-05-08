@@ -110,22 +110,29 @@ public class CustomIdpCreateUserIfUniqueAuthenticator extends AbstractIdpAuthent
             logger.debugf("Duplication detected. There is already existing user with %s '%s' .",
                     duplication.getDuplicateAttributeName(), duplication.getDuplicateAttributeValue());
 
-            // Set duplicated user, so next authenticators can deal with it
-            context.getAuthenticationSession().setAuthNote(EXISTING_USER_INFO, duplication.serialize());
-            //Only show error message if the authenticator was required
-            if (context.getExecution().isRequired()) {
-                Response challengeResponse = context.form()
-                        .setError(Messages.FEDERATED_IDENTITY_EXISTS, duplication.getDuplicateAttributeName(), duplication.getDuplicateAttributeValue())
-                        .createErrorPage(Response.Status.CONFLICT);
-                context.challenge(challengeResponse);
-                context.getEvent()
-                        .user(duplication.getExistingUserId())
-                        .detail("existing_" + duplication.getDuplicateAttributeName(), duplication.getDuplicateAttributeValue())
-                        .removeDetail(Details.AUTH_METHOD)
-                        .removeDetail(Details.AUTH_TYPE)
-                        .error(Errors.FEDERATED_IDENTITY_EXISTS);
+            // Get the existing user and authenticate them directly
+            UserModel existingUser = context.getSession().users().getUserById(context.getRealm(), duplication.getExistingUserId());
+            if (existingUser != null) {
+                context.setUser(existingUser);
+                context.success();
             } else {
-                context.attempted();
+                // Fall back to regular flow if user can't be found
+                context.getAuthenticationSession().setAuthNote(EXISTING_USER_INFO, duplication.serialize());
+
+                if (context.getExecution().isRequired()) {
+                    Response challengeResponse = context.form()
+                            .setError(Messages.FEDERATED_IDENTITY_EXISTS, duplication.getDuplicateAttributeName(), duplication.getDuplicateAttributeValue())
+                            .createErrorPage(Response.Status.CONFLICT);
+                    context.challenge(challengeResponse);
+                    context.getEvent()
+                            .user(duplication.getExistingUserId())
+                            .detail("existing_" + duplication.getDuplicateAttributeName(), duplication.getDuplicateAttributeValue())
+                            .removeDetail(Details.AUTH_METHOD)
+                            .removeDetail(Details.AUTH_TYPE)
+                            .error(Errors.FEDERATED_IDENTITY_EXISTS);
+                } else {
+                    context.attempted();
+                }
             }
         }
     }
