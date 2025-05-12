@@ -208,7 +208,6 @@ public class CustomIdpReviewProfileAuthenticator extends AbstractIdpAuthenticato
                 if (attributeName.equals(UserModel.EMAIL)) {
                     context.getAuthenticationSession().setAuthNote(UPDATE_PROFILE_EMAIL_CHANGED, "true");
                     event.clone().event(EventType.UPDATE_EMAIL).detail(Details.CONTEXT, UserProfileContext.IDP_REVIEW.name()).detail(Details.PREVIOUS_EMAIL, oldEmail).detail(Details.UPDATED_EMAIL, profile.getAttributes().getFirst(UserModel.EMAIL)).success();
-                    context.getAuthenticationSession().setAuthNote("VERIFY_IDP_LINK_ACCOUNT", "true");
                 }
             });
         } catch (ValidationException pve) {
@@ -232,6 +231,9 @@ public class CustomIdpReviewProfileAuthenticator extends AbstractIdpAuthenticato
         String newEmail = profile.getAttributes().getFirst(UserModel.EMAIL);
 
         event.detail(Details.UPDATED_EMAIL, newEmail);
+
+        // Ensure user's email is verified if it was changed
+        context.getAuthenticationSession().setAuthNote("VERIFY_IDP_LINK_ACCOUNT", "true");
 
         // Ensure page is always shown when user later returns to it - for example with form "back" button
         context.getAuthenticationSession().setAuthNote(ENFORCE_UPDATE_PROFILE, "true");
