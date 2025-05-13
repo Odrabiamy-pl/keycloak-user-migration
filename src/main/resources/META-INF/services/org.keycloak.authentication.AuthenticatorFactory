@@ -1,1 +1,2 @@
 com.danielfrak.code.keycloak.providers.authenticators.CustomIdpCreateUserIfUniqueAuthenticatorFactory
+com.danielfrak.code.keycloak.providers.authenticators.CustomIdpReviewProfileAuthenticatorFactory

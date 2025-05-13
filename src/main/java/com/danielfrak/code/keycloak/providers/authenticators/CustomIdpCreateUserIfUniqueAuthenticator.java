@@ -110,9 +110,10 @@ public class CustomIdpCreateUserIfUniqueAuthenticator extends AbstractIdpAuthent
             logger.debugf("Duplication detected. There is already existing user with %s '%s' .",
                     duplication.getDuplicateAttributeName(), duplication.getDuplicateAttributeValue());
 
-            // Get the existing user and authenticate them directly
+            // Get the existing user and authenticate them directly, unless VERIFY_IDP_LINK_ACCOUNT is set to true
             UserModel existingUser = context.getSession().users().getUserById(context.getRealm(), duplication.getExistingUserId());
-            if (existingUser != null) {
+            String verifyIdpLinkAccount = context.getAuthenticationSession().getAuthNote("VERIFY_IDP_LINK_ACCOUNT");
+            if (existingUser != null && !Boolean.parseBoolean(verifyIdpLinkAccount)) {
                 context.setUser(existingUser);
                 context.success();
             } else {
