@@ -35,7 +35,7 @@ import java.util.List;
  */
 public class CustomIdpReviewProfileAuthenticatorFactory implements AuthenticatorFactory {
 
-    public static final String PROVIDER_ID = "idp-review-profile";
+    public static final String PROVIDER_ID = "custom-idp-review-profile";
     static CustomIdpReviewProfileAuthenticator SINGLETON = new CustomIdpReviewProfileAuthenticator();
 
     public static final String UPDATE_PROFILE_ON_FIRST_LOGIN = "update.profile.on.first.login";
