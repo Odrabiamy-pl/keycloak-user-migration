@@ -10,6 +10,7 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.message.BasicHeader;
 import org.apache.http.util.EntityUtils;
+import org.jboss.logging.Logger;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -21,6 +22,7 @@ public class HttpClient {
     private static final String BEARER_FORMAT = "Bearer %s";
     private static final String BASIC_AUTH_FORMAT = "Basic %s";
     private static final String USERNAME_PASSWORD_FORMAT = "%s:%s";
+    private static final Logger LOG = Logger.getLogger(HttpClient.class);
 
     private final HttpClientBuilder httpClientBuilder;
 
@@ -69,6 +71,19 @@ public class HttpClient {
     private HttpResponse getHttpResponse(CloseableHttpResponse response) throws IOException {
         int statusCode = response.getStatusLine().getStatusCode();
         String entityAsString = getEntityAsString(response);
+
+        if (statusCode < 200 || statusCode >= 300 && statusCode != 404) {
+            StringBuilder responseDetails = new StringBuilder();
+
+            responseDetails.append("status: ").append(response.getStatusLine()).append("; ");
+            responseDetails.append("headers: ");
+            for (org.apache.http.Header header : response.getAllHeaders()) {
+                responseDetails.append(header.getName()).append(": ").append(header.getValue()).append("; ");
+            }
+            responseDetails.append("body: ").append(entityAsString);
+
+            LOG.errorf("HTTP request failed with %s", responseDetails.toString());
+        }
 
         return new HttpResponse(statusCode, entityAsString);
     }
