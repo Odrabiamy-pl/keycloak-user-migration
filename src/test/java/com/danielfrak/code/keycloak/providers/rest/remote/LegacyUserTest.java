@@ -1,108 +1,80 @@
 package com.danielfrak.code.keycloak.providers.rest.remote;
 
-import nl.jqno.equalsverifier.EqualsVerifier;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.Map;
 
-import static java.util.Collections.singletonList;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 
 class LegacyUserTest {
 
     @Test
-    void shouldGetAndSetUsername() {
-        var user = new LegacyUser();
-        var expectedValue = "someValue";
-        user.setUsername(expectedValue);
-        assertEquals(expectedValue, user.getUsername());
+    void shouldMapToJson() throws JsonProcessingException {
+        var objectMapper = new ObjectMapper();
+        LegacyUser legacyUser = legacyUser();
+
+        String result = objectMapper.writeValueAsString(legacyUser);
+
+        String expectedJson = json();
+        assertThatJson(result).isEqualTo(expectedJson);
     }
 
-    @Test
-    void shouldGetAndSetEmail() {
-        var user = new LegacyUser();
-        var expectedValue = "someValue";
-        user.setEmail(expectedValue);
-        assertEquals(expectedValue, user.getEmail());
+    private LegacyUser legacyUser() {
+        return new LegacyUser(
+                "someId",
+                "someUsername",
+                "someEmail",
+                "someFirstName",
+                "someLastName",
+                true,
+                false,
+                Map.of("attribute1", List.of("attributeValue")),
+                List.of("role1"),
+                List.of("group1"),
+                List.of("requiredAction1"),
+                List.of(new LegacyTotp("secret", "name", 1, 2, "someAlgorithm",
+                        "someEncoding"))
+        );
     }
 
-    @Test
-    void shouldGetAndSetFirstName() {
-        var user = new LegacyUser();
-        var expectedValue = "someValue";
-        user.setFirstName(expectedValue);
-        assertEquals(expectedValue, user.getFirstName());
-    }
-
-    @Test
-    void shouldGetAndSetLastName() {
-        var user = new LegacyUser();
-        var expectedValue = "someValue";
-        user.setLastName(expectedValue);
-        assertEquals(expectedValue, user.getLastName());
-    }
-
-    @Test
-    void shouldGetAndSetEnabled() {
-        var user = new LegacyUser();
-        user.setEnabled(true);
-        assertTrue(user.isEnabled());
-    }
-
-    @Test
-    void shouldGetAndSetEmailVerified() {
-        var user = new LegacyUser();
-        user.setEmailVerified(true);
-        assertTrue(user.isEmailVerified());
-    }
-
-    @Test
-    void shouldGetAndSetAttributes() {
-        var user = new LegacyUser();
-        var expectedValue = Map.of("attribute1", singletonList("value1"));
-        user.setAttributes(expectedValue);
-        assertEquals(expectedValue, user.getAttributes());
-    }
-
-    @Test
-    void shouldGetAndSetRoles() {
-        var user = new LegacyUser();
-        var expectedValue = singletonList("value1");
-        user.setRoles(expectedValue);
-        assertEquals(expectedValue, user.getRoles());
-    }
-
-    @Test
-    void shouldGetAndSetGroups() {
-        var user = new LegacyUser();
-        var expectedValue = singletonList("value1");
-        user.setGroups(expectedValue);
-        assertEquals(expectedValue, user.getGroups());
-    }
-
-    @Test
-    void shouldGetAndSetRequiredActions() {
-        var user = new LegacyUser();
-        var expectedValue = singletonList("value1");
-        user.setRequiredActions(expectedValue);
-        assertEquals(expectedValue, user.getRequiredActions());
-    }
-
-    @Test
-    void shouldGetAndSetTotps() {
-        var user = new LegacyUser();
-        var legacyTotp = new LegacyTotp();
-        legacyTotp.setName("value1");
-        legacyTotp.setSecret("value2");
-        var expectedValue = singletonList(legacyTotp);
-        user.setTotps(expectedValue);
-        assertEquals(expectedValue, user.getTotps());
-    }
-
-    @Test
-    void testEquals() {
-        EqualsVerifier.simple().forClass(LegacyUser.class)
-                .verify();
+    private String json() {
+        return """
+                {
+                  "id": "someId",
+                  "username": "someUsername",
+                  "email": "someEmail",
+                  "firstName": "someFirstName",
+                  "lastName": "someLastName",
+                  "enabled": true,
+                  "emailVerified": false,
+                  "attributes": {
+                    "attribute1": [
+                      "attributeValue"
+                    ]
+                  },
+                  "roles": [
+                    "role1"
+                  ],
+                  "groups": [
+                    "group1"
+                  ],
+                  "requiredActions": [
+                    "requiredAction1"
+                  ],
+                  "totps": [
+                    {
+                      "secret": "secret",
+                      "name": "name",
+                      "digits": 1,
+                      "period": 2,
+                      "algorithm": "someAlgorithm",
+                      "encoding": "someEncoding"
+                    }
+                  ]
+                }
+                """;
     }
 }
