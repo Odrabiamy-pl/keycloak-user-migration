@@ -56,25 +56,16 @@ public class RestUserService implements LegacyUserService {
                 .filter(u -> equalsCaseInsensitive(email, u.getEmail()));
     }
 
-    private boolean equalsCaseInsensitive(String a, String b) {
-        if(a == null || b == null) {
-            return false;
-        }
-
-        return a.toUpperCase(Locale.ROOT).equals(b.toUpperCase(Locale.ROOT));
-    }
-
     @Override
-    public Optional<LegacyUser> findByUsername(String username) {
-        return findLegacyUser(username)
-                .filter(u -> equalsCaseInsensitive(username, u.getUsername()));
+    public Optional<LegacyUser> findByProviderUserId(String providerUserId) {
+        return findLegacyUser(providerUserId);
     }
 
-    private Optional<LegacyUser> findLegacyUser(String usernameOrEmail) {
-        if (usernameOrEmail != null) {
-            usernameOrEmail = Encode.urlEncode(usernameOrEmail);
+    private Optional<LegacyUser> findLegacyUser(String id) {
+        if (id != null) {
+            id = Encode.urlEncode(id);
         }
-        var getUsernameUri = String.format("%s/%s", this.uri, usernameOrEmail);
+        var getUsernameUri = String.format("%s/%s", this.uri, id);
         try {
             var response = this.httpClient.get(getUsernameUri);
             if (response.getCode() != HttpStatus.SC_OK) {
@@ -120,13 +111,12 @@ public class RestUserService implements LegacyUserService {
     }
 
     @Override
-    public Optional<LegacyUser> addUser(String email, String password, String firstName, String lastName, String picture, String provider, String providerUserId) {
+    public Optional<LegacyUser> addUser(String email, String password, String firstName, String lastName, String provider, String providerUserId) {
         var userJson = objectMapper.createObjectNode();
         userJson.put("email", email);
         userJson.put("firstName", firstName);
         userJson.put("lastName", lastName);
         userJson.put("password", password);
-        userJson.put("picture", picture);
         userJson.put("provider", provider);
         userJson.put("providerUserId", providerUserId);
 
@@ -159,5 +149,13 @@ public class RestUserService implements LegacyUserService {
         } catch (RuntimeException e) {
             throw new RestUserProviderException(e);
         }
+    }
+
+    private boolean equalsCaseInsensitive(String a, String b) {
+        if(a == null || b == null) {
+            return false;
+        }
+
+        return a.toUpperCase(Locale.ROOT).equals(b.toUpperCase(Locale.ROOT));
     }
 }

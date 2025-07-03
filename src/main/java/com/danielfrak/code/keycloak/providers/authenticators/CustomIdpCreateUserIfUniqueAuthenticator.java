@@ -138,19 +138,23 @@ public class CustomIdpCreateUserIfUniqueAuthenticator extends AbstractIdpAuthent
         }
     }
 
-    // Could be overriden to detect duplication based on other criterias (firstName, lastName, ...)
     protected ExistingUserInfo checkExistingUser(AuthenticationFlowContext context, String username, SerializedBrokeredIdentityContext serializedCtx, BrokeredIdentityContext brokerContext) {
+        // Check for existing user by broker user ID
+        if (brokerContext.getId() != null && brokerContext.getIdpConfig() != null) {
+            // Try to find user by external broker ID using getUserByUsername,
+            // since there is no getUserByBrokerUserId method in the UserLookupProvider
+            UserModel existingUser = context.getSession().users().getUserByUsername(context.getRealm(), brokerContext.getId());
+
+            if (existingUser != null) {
+                return new ExistingUserInfo(existingUser.getId(), "broker.user.id", brokerContext.getId());
+            }
+        }
 
         if (brokerContext.getEmail() != null && !context.getRealm().isDuplicateEmailsAllowed()) {
             UserModel existingUser = context.getSession().users().getUserByEmail(context.getRealm(), brokerContext.getEmail());
             if (existingUser != null) {
                 return new ExistingUserInfo(existingUser.getId(), UserModel.EMAIL, existingUser.getEmail());
             }
-        }
-
-        UserModel existingUser = context.getSession().users().getUserByUsername(context.getRealm(), username);
-        if (existingUser != null) {
-            return new ExistingUserInfo(existingUser.getId(), UserModel.USERNAME, existingUser.getUsername());
         }
 
         return null;
