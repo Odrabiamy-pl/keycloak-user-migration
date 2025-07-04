@@ -14,6 +14,7 @@ import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.SubjectCredentialManager;
 import org.keycloak.models.UserModel;
+import org.keycloak.models.UserProvider;
 import org.keycloak.models.credential.PasswordCredentialModel;
 import org.keycloak.policy.PasswordPolicyManagerProvider;
 import org.keycloak.policy.PolicyError;
@@ -57,35 +58,40 @@ class LegacyProviderTest {
     @Mock
     private PasswordPolicyManagerProvider passwordPolicyManagerProvider;
 
+    @Mock
+    private UserProvider userProvider;
+
     @BeforeEach
     void setUp() {
         legacyProvider = new LegacyProvider(session, legacyUserService, userModelFactory, model);
 
         lenient().when(session.getProvider(PasswordPolicyManagerProvider.class))
                 .thenReturn(passwordPolicyManagerProvider);
+        lenient().when(session.users())
+                .thenReturn(userProvider);
     }
 
     @Test
     void shouldGetUserByUsername() {
-        final String username = "user";
+        final String providerUserId = "facebook-123456";
         final LegacyUser user = new LegacyUser();
-        when(legacyUserService.findByUsername(username))
+        when(legacyUserService.findByProviderUserId(providerUserId))
                 .thenReturn(Optional.of(user));
         when(userModelFactory.create(user, realmModel))
                 .thenReturn(userModel);
 
-        var result = legacyProvider.getUserByUsername(realmModel, username);
+        var result = legacyProvider.getUserByUsername(realmModel, providerUserId);
 
         assertEquals(userModel, result);
     }
 
     @Test
     void shouldReturnNullIfUserNotFoundByUsername() {
-        final String username = "user";
-        when(legacyUserService.findByUsername(username))
+        final String providerUserId = "facebook-123456";
+        when(legacyUserService.findByProviderUserId(providerUserId))
                 .thenReturn(Optional.empty());
 
-        var result = legacyProvider.getUserByUsername(realmModel, username);
+        var result = legacyProvider.getUserByUsername(realmModel, providerUserId);
 
         assertNull(result);
     }

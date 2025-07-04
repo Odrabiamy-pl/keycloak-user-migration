@@ -169,7 +169,7 @@ class RestUserServiceTest {
         var restUserService = new RestUserService(model, httpClient, new ObjectMapper());
         when(httpClient.get(path)).thenReturn(response);
 
-        var result = restUserService.findByUsername(expectedUser.getEmail());
+        var result = restUserService.findByEmail(expectedUser.getEmail());
 
         assertTrue(result.isEmpty());
     }
@@ -194,8 +194,40 @@ class RestUserServiceTest {
         assertTrue(result.isEmpty());
     }
 
+
+
     @Test
-    void findByUsernameShouldThrowWhenRuntimeExceptionOccurs() {
+    void findByProviderUserIdShouldReturnAUserWhenUserIsFound() throws IOException {
+        var expectedUser = createALegacyUser("someUsername", "email@example.com");
+        var providerId = "facebook-123456";
+        var path = String.format(URI_PATH_FORMAT, URI, Encode.urlEncode(providerId));
+        var response = new HttpResponse(HttpStatus.SC_OK, objectMapper.writeValueAsString(expectedUser));
+        var restUserService = new RestUserService(model, httpClient, new ObjectMapper());
+
+        when(httpClient.get(path)).thenReturn(response);
+
+        var result = restUserService.findByProviderUserId(providerId);
+
+        assertTrue(result.isPresent());
+        assertEquals(result.get(), expectedUser);
+    }
+
+    @Test
+    void findByProviderUserIdShouldReturnEmptyOptionalWhenUserIsNotFound() {
+        var providerId = "facebook-123456";
+        var path = String.format(URI_PATH_FORMAT, URI, Encode.urlEncode(providerId));
+        var response = new HttpResponse(HttpStatus.SC_NOT_FOUND);
+        var restUserService = new RestUserService(model, httpClient, new ObjectMapper());
+
+        when(httpClient.get(path)).thenReturn(response);
+
+        var result = restUserService.findByProviderUserId(providerId);
+
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void findByProviderUserIdShouldThrowWhenRuntimeExceptionOccurs() {
         var restUserService = new RestUserService(model, httpClient, new ObjectMapper());
         var cause = new RuntimeException();
 
@@ -203,111 +235,9 @@ class RestUserServiceTest {
                 .thenThrow(cause);
 
         var exception = assertThrows(RestUserProviderException.class,
-                () -> restUserService.findByUsername("someUsername"));
+                () -> restUserService.findByProviderUserId("facebook-123456"));
 
         assertEquals(cause, exception.getCause());
-    }
-
-    @Test
-    void findByUsernameShouldThrowWhenIOExceptionOccurs() {
-        var restUserService = new RestUserService(model, httpClient, new ObjectMapper());
-
-        when(httpClient.get(any()))
-                .thenReturn(new HttpResponse(200, "malformedJson"));
-
-        var exception = assertThrows(RestUserProviderException.class,
-                () -> restUserService.findByUsername("someUsername"));
-
-        assertSame(exception.getCause().getClass(), JsonParseException.class);
-    }
-
-    @Test
-    void findByUsernameShouldReturnAUserWhenUserIsFoundAndUsernameMatches() throws IOException {
-        var expectedUser = createALegacyUser("someUsername", "email@example.com");
-        var path = String.format(URI_PATH_FORMAT, URI, expectedUser.getUsername());
-        var response = new HttpResponse(HttpStatus.SC_OK, objectMapper.writeValueAsString(expectedUser));
-        var restUserService = new RestUserService(model, httpClient, new ObjectMapper());
-        when(httpClient.get(path)).thenReturn(response);
-
-        var result = restUserService.findByUsername(expectedUser.getUsername());
-
-        assertTrue(result.isPresent());
-        assertEquals(result.get(), expectedUser);
-    }
-
-    @Test
-    void findByUsernameShouldReturnAUserWhenUserIsFoundAndUsernameMatchesCaseInsensitive() throws IOException {
-        var expectedUser = createALegacyUser("someUsername", "email@example.com");
-        var path = String.format(URI_PATH_FORMAT, URI, "SOMEUSERNAME");
-        var response = new HttpResponse(HttpStatus.SC_OK, objectMapper.writeValueAsString(expectedUser));
-        var restUserService = new RestUserService(model, httpClient, new ObjectMapper());
-        when(httpClient.get(path)).thenReturn(response);
-
-        var result = restUserService.findByUsername("SOMEUSERNAME");
-
-        assertTrue(result.isPresent());
-        assertEquals(result.get(), expectedUser);
-    }
-
-    @Test
-    void findByUsernameShouldReturnAUserWhenUserIsFoundAndUsernameContainsSpace() throws IOException {
-        var expectedUser = createALegacyUser("some Username", "email@example.com");
-        var path = String.format(URI_PATH_FORMAT, URI, "SOME+USERNAME");
-        var response = new HttpResponse(HttpStatus.SC_OK, objectMapper.writeValueAsString(expectedUser));
-        var restUserService = new RestUserService(model, httpClient, new ObjectMapper());
-        when(httpClient.get(path)).thenReturn(response);
-
-        var result = restUserService.findByUsername("SOME USERNAME");
-
-        assertTrue(result.isPresent());
-        assertEquals(result.get(), expectedUser);
-    }
-
-    @Test
-    void findByUsernameShouldReturnAnEmptyOptionalWhenUserIsNotFound() {
-        var expectedUser = createALegacyUser("someUsername", "email@example.com");
-        var path = String.format(URI_PATH_FORMAT, URI, expectedUser.getUsername());
-        var response = new HttpResponse(HttpStatus.SC_NOT_FOUND);
-        when(httpClient.get(path)).thenReturn(response);
-        var restUserService = new RestUserService(model, httpClient, new ObjectMapper());
-
-        var result = restUserService.findByUsername(expectedUser.getUsername());
-
-        assertTrue(result.isEmpty());
-    }
-
-    @Test
-    void findByUsernameShouldReturnAnEmptyOptionalWhenUsernameDoesNotMatch() throws JsonProcessingException {
-        var expectedUser = createALegacyUser("differentUsername", "email@example.com");
-        var path = String.format(URI_PATH_FORMAT, URI, "someUsername");
-        var response = new HttpResponse(HttpStatus.SC_OK, objectMapper.writeValueAsString(expectedUser));
-        var restUserService = new RestUserService(model, httpClient, new ObjectMapper());
-
-        when(httpClient.get(path)).thenReturn(response);
-
-        var result = restUserService.findByUsername("someUsername");
-
-        assertTrue(result.isEmpty());
-    }
-
-    @ParameterizedTest
-    @CsvSource(value = {
-            "someUsername, differentUsername",
-            "null, someUsername",
-            "someUsername, null"
-    }, nullValues = {"null"})
-    void findByUsernameShouldReturnAnEmptyOptionalWhenUsernameDoesNotMatch(
-            String requestedUsername, String returnedUsername) throws JsonProcessingException {
-        var expectedUser = createALegacyUser(returnedUsername, "email@example.com");
-        var path = String.format(URI_PATH_FORMAT, URI, requestedUsername);
-        var response = new HttpResponse(HttpStatus.SC_OK, objectMapper.writeValueAsString(expectedUser));
-        var restUserService = new RestUserService(model, httpClient, new ObjectMapper());
-
-        when(httpClient.get(path)).thenReturn(response);
-
-        var result = restUserService.findByUsername(requestedUsername);
-
-        assertTrue(result.isEmpty());
     }
 
     @Test

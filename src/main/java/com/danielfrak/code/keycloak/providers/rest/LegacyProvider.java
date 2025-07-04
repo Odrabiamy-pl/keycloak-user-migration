@@ -52,15 +52,15 @@ public class LegacyProvider implements UserStorageProvider,
 
     private UserModel getUserModel(RealmModel realm, String username, Supplier<Optional<LegacyUser>> user) {
         return user.get()
-                .filter(u -> {
-                    // Make sure we're not trying to migrate users if they have changed their username
+                .map(u -> {
+                    // Check if user already exists in Keycloak
                     boolean duplicate = userModelFactory.isDuplicateUserId(u, realm);
                     if (duplicate) {
-                        LOG.warnf("User with the same user id already exists: %s", u.getId());
+                        return session.users().getUserById(realm, u.getId());
+                    } else {
+                        return userModelFactory.create(u, realm);
                     }
-                    return !duplicate;
                 })
-                .map(u -> userModelFactory.create(u, realm))
                 .orElseGet(() -> {
                     LOG.warnf("User not found in external repository: %s", username);
                     return null;
@@ -156,7 +156,7 @@ public class LegacyProvider implements UserStorageProvider,
 
     @Override
     public UserModel addUser(RealmModel realm, String username) {
-        String password = null, firstName = null, lastName = null, picture = null, provider = null, providerUserId = null;
+        String password = null, firstName = null, lastName = null, provider = null, providerUserId = null;
 
         // if the user was created by a broker (e.g. Facebook), retrieve the broker context
         AuthenticationSessionModel authSession = this.session.getContext().getAuthenticationSession();
@@ -169,9 +169,6 @@ public class LegacyProvider implements UserStorageProvider,
                 lastName = brokerContext.getLastName();
                 provider = brokerContext.getIdentityProviderId();
                 providerUserId = brokerContext.getId();
-
-                var pictureAttr = brokerContext.getAttribute("picture");
-                picture = pictureAttr != null ? pictureAttr.getFirst() : null;
             } catch (Exception e) {
                 LOG.error("Error deserializing broker context", e);
             }
@@ -183,7 +180,7 @@ public class LegacyProvider implements UserStorageProvider,
         }
 
         try {
-            var user = legacyUserService.addUser(username, password, firstName, lastName, picture, provider, providerUserId);
+            var user = legacyUserService.addUser(username, password, firstName, lastName, provider, providerUserId);
             return user.map(legacyUser -> userModelFactory.create(legacyUser, realm)).orElse(null);
         } catch (RestUserProviderException e) {
             LOG.errorf("Failed to add user: %s", username, e);
@@ -239,8 +236,10 @@ public class LegacyProvider implements UserStorageProvider,
     }
 
     @Override
-    public UserModel getUserByUsername(RealmModel realmModel, String username) {
-        return getUserModel(realmModel, username, () -> legacyUserService.findByUsername(username));
+    // Since there is no getUserByBrokerUserId method in the UserLookupProvider,
+    // we need to reuse getUserByUsername for this purpose
+    public UserModel getUserByUsername(RealmModel realmModel, String providerId) {
+        return getUserModel(realmModel, providerId, () -> legacyUserService.findByProviderUserId(providerId));
     }
 
     @Override

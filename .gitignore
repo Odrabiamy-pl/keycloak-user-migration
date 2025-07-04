@@ -5,6 +5,7 @@
 .project
 .settings
 .idea
+AGENT.md
 
 # Package Files #
 *.jar

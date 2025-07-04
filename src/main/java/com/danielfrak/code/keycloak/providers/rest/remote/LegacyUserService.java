@@ -18,10 +18,10 @@ public interface LegacyUserService {
     /**
      * Find user by username.
      *
-     * @param username username to search user by.
+     * @param providerUserId providerUserId to search user by.
      * @return Optional of legacy user.
      */
-    Optional<LegacyUser> findByUsername(String username);
+    Optional<LegacyUser> findByProviderUserId(String providerUserId);
 
     /**
      * Validate given password in legacy user provider.
@@ -34,7 +34,7 @@ public interface LegacyUserService {
 
     boolean updateCredential(String username, String password);
 
-    Optional<LegacyUser> addUser(String email, String password, String firstName, String lastName, String picture, String provider, String providerUserId);
+    Optional<LegacyUser> addUser(String email, String password, String firstName, String lastName, String provider, String providerUserId);
 
     boolean removeUser(String username);
 }
