@@ -37,6 +37,8 @@ import org.keycloak.services.messages.Messages;
 
 import java.util.List;
 import java.util.Map;
+import static org.keycloak.broker.provider.AbstractIdentityProvider.BROKER_REGISTERED_NEW_USER;
+
 
 /**
  * @author <a href="mailto:mposolda@redhat.com">Marek Posolda</a>
